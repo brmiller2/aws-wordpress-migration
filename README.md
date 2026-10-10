@@ -280,4 +280,4 @@ Screenshots have the AWS account ID, home IP address, and email redacted. The EC
 
 ---
 
-*Built by B. Miller as part of the 1% University Cloud Engineering program.*
+*Built by B. Miller*
