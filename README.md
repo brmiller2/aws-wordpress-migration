@@ -4,7 +4,7 @@
 
 Built as Project 1 of the Cloud Engineering program at **1% University** · October 2026
 
-![Architecture](diagrams/architecture.svg)
+![Architecture](architecture.svg)
 
 | | |
 |---|---|
@@ -48,9 +48,9 @@ The site needed a home in the cloud. I launched an **EC2 instance** (t3.micro, U
 - **SSH (port 22)** allowed **only from my own IP address**, so nobody else can even attempt to log in
 - **HTTP (port 80)** open to everyone, so visitors can reach the site
 
-![EC2 instance running](screenshots/01-ec2-instance-running.png)
-![EC2 instance summary](screenshots/02-ec2-instance-summary.png)
-![Security group inbound rules](screenshots/03-security-group-inbound-rules.png)
+![EC2 instance running](01-ec2-instance-running.png)
+![EC2 instance summary](02-ec2-instance-summary.png)
+![Security group inbound rules](03-security-group-inbound-rules.png)
 
 > **Why it matters:** least-privilege network access is the first line of defense. Locking SSH to a single IP removes the most common attack surface on a public server.
 
@@ -68,8 +68,8 @@ icacls .\wp-key-bm.pem /grant:r "$(whoami):(R)"
 ssh -i "wp-key-bm.pem" ubuntu@<public-ip>
 ```
 
-![Fixing key permissions](screenshots/04-ssh-key-permission-fix.png)
-![Connected over SSH](screenshots/05-ssh-connected.png)
+![Fixing key permissions](04-ssh-key-permission-fix.png)
+![Connected over SSH](05-ssh-connected.png)
 
 ---
 
@@ -88,9 +88,9 @@ sudo mysql_secure_installation
 
 Both services came up healthy, and Apache's default page loading at the public IP proved the server **and** the security group were working. I then hardened MySQL: I removed anonymous users, disabled remote root login, and dropped the test database.
 
-![Apache and MySQL running](screenshots/06-apache-mysql-running.png)
-![Apache default page](screenshots/07-apache-default-page.png)
-![MySQL secured](screenshots/08-mysql-secure-installation.png)
+![Apache and MySQL running](06-apache-mysql-running.png)
+![Apache default page](07-apache-default-page.png)
+![MySQL secured](08-mysql-secure-installation.png)
 
 ---
 
@@ -107,8 +107,8 @@ FLUSH PRIVILEGES;
 
 My first `CREATE USER` was rejected with **error 1819**: the placeholder password failed MySQL's password policy, which I had enabled myself during hardening. The user was never created, so the follow-up `ALTER USER` failed too. Re-running `CREATE USER` with a compliant password fixed it.
 
-![MySQL error 1819](screenshots/09-mysql-error-1819.png)
-![User created and granted](screenshots/10-mysql-user-created.png)
+![MySQL error 1819](09-mysql-error-1819.png)
+![User created and granted](10-mysql-user-created.png)
 
 > **Lesson:** a security control doing its job can look like a bug. Reading the error code told me exactly why.
 
@@ -128,8 +128,8 @@ sudo chmod -R 755 /var/www/html/
 
 Before and after: the web root held only Apache's `index.html`; afterward it held the full WordPress application.
 
-![Web root before](screenshots/11-webroot-before-wordpress.png)
-![WordPress files in place](screenshots/12-wordpress-files-in-place.png)
+![Web root before](11-webroot-before-wordpress.png)
+![WordPress files in place](12-wordpress-files-in-place.png)
 
 ---
 
@@ -137,9 +137,9 @@ Before and after: the web root held only Apache's `index.html`; afterward it hel
 
 WordPress connects to MySQL through `wp-config.php`. I opened it in **nano** to set the database name, user, and password, but nano's save prompt wouldn't accept the Enter key in my Windows terminal.
 
-![wp-config in nano](screenshots/13-wp-config-in-nano.png)
-![Save prompt stuck](screenshots/15-nano-save-stuck.png)
-![Placeholders still present](screenshots/17-grep-placeholders.png)
+![wp-config in nano](13-wp-config-in-nano.png)
+![Save prompt stuck](15-nano-save-stuck.png)
+![Placeholders still present](17-grep-placeholders.png)
 
 Instead of fighting the editor, I verified the file with `grep`, then made the edit **non-interactively with `sed`**, which is also how you'd do it in automation:
 
@@ -150,7 +150,7 @@ sudo rm /var/www/html/index.html
 sudo systemctl restart apache2
 ```
 
-![sed fix confirmed](screenshots/18-sed-fix-and-restart.png)
+![sed fix confirmed](18-sed-fix-and-restart.png)
 
 ---
 
@@ -158,10 +158,10 @@ sudo systemctl restart apache2
 
 Browsing to the public IP brought up the WordPress installer. That alone proved WordPress could reach MySQL, since a bad connection shows an error instead. I finished setup and logged in to the dashboard. The site was live on AWS.
 
-![WordPress installer](screenshots/19-wordpress-installer.png)
-![WordPress dashboard](screenshots/21-wordpress-dashboard.png)
-![WordPress settings](screenshots/24-wordpress-general-settings.png)
-![Live site](screenshots/25-live-site.png)
+![WordPress installer](19-wordpress-installer.png)
+![WordPress dashboard](21-wordpress-dashboard.png)
+![WordPress settings](24-wordpress-general-settings.png)
+![Live site](25-live-site.png)
 
 ---
 
@@ -169,14 +169,14 @@ Browsing to the public IP brought up the WordPress installer. That alone proved 
 
 A migration isn't finished until the data is **backed up, restored, and verified**. Before terminating the instance, I ran a full dump-and-load test.
 
-![Data dump and load flow](diagrams/data-dump-and-load.svg)
+![Data dump and load flow](data-dump-and-load.svg)
 
 ### The twist: MySQL kept dying
 
 My first `mysqldump` failed with **error 2002**: MySQL wasn't running. `systemctl status` showed why: **`Failed with result 'oom-kill'`**. With only 1 GB of RAM, the t3.micro had run out of memory, and Linux killed MySQL **13 times**.
 
-![Socket error](screenshots/28-mysqldump-socket-error.png)
-![OOM kill](screenshots/29-mysql-oom-kill.png)
+![Socket error](28-mysqldump-socket-error.png)
+![OOM kill](29-mysql-oom-kill.png)
 
 I added a 1 GB swap file to give MySQL breathing room, confirmed it with `free -h`, and re-ran the dump.
 
@@ -198,7 +198,7 @@ grep -c "CREATE TABLE" ~/wordpress_db_backup.sql   # 12
 
 `--single-transaction` takes a consistent snapshot without locking tables, so the site stays usable during the backup.
 
-![Swap and dump](screenshots/30-swap-and-dump.png)
+![Swap and dump](30-swap-and-dump.png)
 
 ### Load and verify
 
@@ -209,7 +209,7 @@ sudo mysql -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema
 sudo mysql -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='wordpress_db_restore';"
 ```
 
-![Restore verified](screenshots/31-restore-verified.png)
+![Restore verified](31-restore-verified.png)
 
 ### Save it off the server
 
@@ -217,7 +217,7 @@ sudo mysql -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema
 scp -i "wp-key-bm.pem" ubuntu@<public-ip>:~/wordpress_db_backup.sql "$HOME\OneDrive\Desktop\Project 1"
 ```
 
-![Backup downloaded](screenshots/32-backup-downloaded.png)
+![Backup downloaded](32-backup-downloaded.png)
 
 ### Results
 
@@ -266,11 +266,10 @@ This project is a deliberate first step. To move from **rehost** toward **replat
 
 ```
 .
-├── README.md            ← this storyline
-├── diagrams/
-│   ├── architecture.svg
-│   └── data-dump-and-load.svg
-└── screenshots/         ← 32 numbered screenshots in build order
+├── README.md                  ← this storyline
+├── architecture.svg           ← architecture diagram
+├── data-dump-and-load.svg     ← backup and restore flow
+└── 01-…png to 32-…png         ← 32 numbered screenshots in build order
 ```
 
 **Deliberately not committed** (blocked by `.gitignore`):
